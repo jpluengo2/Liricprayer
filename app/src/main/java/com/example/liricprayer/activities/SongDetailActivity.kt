@@ -1,5 +1,6 @@
 package com.example.liricprayer.activities
 
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -12,93 +13,112 @@ import com.example.liricprayer.data.Song
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.options.IFramePlayerOptions
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.utils.YouTubePlayerTracker
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
-import java.util.regex.Pattern
 
 class SongDetailActivity : AppCompatActivity() {
 
     private lateinit var youTubePlayerView: YouTubePlayerView
-    private var isPlayerInitialized = false // Control para no cargar dos veces
+    private var isPlayerInitialized = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_song_detail)
 
-        // 1. Configurar Toolbar
+        // 1. Configuración de UI
         val toolbar: Toolbar = findViewById(R.id.detail_toolbar)
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
-        // 2. Encontrar Vistas
         val lyricsText: TextView = findViewById(R.id.lyrics_text)
         val liturgyText: TextView = findViewById(R.id.detail_liturgy_text)
         val fabPlay: FloatingActionButton = findViewById(R.id.fab_play)
         youTubePlayerView = findViewById(R.id.youtube_player_view)
 
-        // Añadir el reproductor al ciclo de vida
+        // IMPORTANTE: Añadir al ciclo de vida para evitar fugas de memoria
         lifecycle.addObserver(youTubePlayerView)
 
-        // 3. Recibir el objeto Song
+        // 2. Obtener datos
         val song = getSongFromIntent()
-
         if (song == null) {
-            Toast.makeText(this, "Error al cargar la canción", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
 
-        // 4. Rellenar Textos Iniciales
+        // 3. Pintar datos básicos
         supportActionBar?.title = song.title
         lyricsText.text = song.lyrics
         liturgyText.text = song.liturgyTypes.joinToString(", ")
 
-        // 5. Lógica del Botón Play y Video
-        // Limpiamos la URL de posibles espacios en blanco invisibles con .trim()
-        val cleanUrl = song.audioUrl.trim()
-        val videoId = if (cleanUrl.isNotEmpty()) extractYouTubeId(cleanUrl) else null
+        // 4. Lógica "Blindada" del Video
+        // Limpiamos espacios, saltos de línea y tabuladores que puedan ensuciar el link
+        val rawUrl = song.audioUrl.trim().replace("\\s+".toRegex(), "")
+        val videoId = if (rawUrl.isNotEmpty()) extractYouTubeId(rawUrl) else null
 
         if (videoId != null) {
-            // Si hay video válido, mostramos el botón FAB
             fabPlay.visibility = View.VISIBLE
 
-            // Configurar el click del botón
+            // Configuración del botón Play
             fabPlay.setOnClickListener {
                 if (!isPlayerInitialized) {
-                    // CAMBIO DE DISEÑO AL PULSAR PLAY:
-                    // 1. Ocultar Liturgia
+                    // Cambio visual
                     liturgyText.visibility = View.GONE
-                    // 2. Mostrar marco de video
-                    youTubePlayerView.visibility = View.VISIBLE
-                    // 3. Ocultar el botón play (ya no hace falta)
                     fabPlay.visibility = View.GONE
+                    youTubePlayerView.visibility = View.VISIBLE
 
-                    // 4. Cargar y arrancar video
-                    youTubePlayerView.addYouTubePlayerListener(object : AbstractYouTubePlayerListener() {
-                        override fun onReady(youTubePlayer: YouTubePlayer) {
-                            isPlayerInitialized = true
-                            // loadVideo arranca automáticamente. cueVideo solo lo carga.
-                            youTubePlayer.loadVideo(videoId, 0f)
-                        }
-                    })
+                    // CONFIGURACIÓN INFALIBLE (IFrameOptions)
+                    // Esto le dice a YouTube que somos un reproductor legítimo y evita el error de "Video no disponible"
+                    val options = IFramePlayerOptions.Builder(this)
+                        .controls(1)       // Mostrar controles (play, volumen)
+                        .rel(0)            // No mostrar videos relacionados al acabar
+                        .ivLoadPolicy(3)   // Ocultar anotaciones de video
+                        .ccLoadPolicy(0)   // Sin subtítulos por defecto
+                        .build()
+
+                    // Inicialización manual con las opciones Y EL CONTEXTO
+                    youTubePlayerView.initialize(
+                        youTubePlayerListener = object : AbstractYouTubePlayerListener() {
+                            override fun onReady(youTubePlayer: YouTubePlayer) {
+                                isPlayerInitialized = true
+                                // Cargar y reproducir inmediatamente
+                                youTubePlayer.loadVideo(videoId, 0f)
+                            }
+
+                            override fun onError(youTubePlayer: YouTubePlayer, error: com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants.PlayerError) {
+                                super.onError(youTubePlayer, error)
+                                // Si falla, mostramos un aviso discreto pero útil
+                                Toast.makeText(this@SongDetailActivity, "Error YouTube: $error", Toast.LENGTH_LONG).show()
+                            }
+                        },
+                        handleNetworkEvents = true, // It's good practice to handle network events
+                        playerOptions = options
+                    )
                 }
             }
         } else {
-            // No hay URL válida
+            // Sin video o URL inválida
             fabPlay.visibility = View.GONE
             youTubePlayerView.visibility = View.GONE
         }
     }
 
-    // Extrae el ID del video con limpieza de caracteres
-    // Función de extracción robusta (funciona con youtube.com y youtu.be)
+    // Metodo de extracción robusto usando URI nativo de Android
     private fun extractYouTubeId(url: String): String? {
-        val pattern = "^.*(youtu.be\\/|v\\/|u\\/\\w\\/|embed\\/|watch\\?v=|&v=)([^#&?]*).*"
-        val compiledPattern = Pattern.compile(pattern, Pattern.CASE_INSENSITIVE)
-        val matcher = compiledPattern.matcher(url)
+        return try {
+            val uri = Uri.parse(url)
+            val host = uri.host?.lowercase() ?: return null
 
-        return if (matcher.find()) {
-            matcher.group(2) // Devuelve solo el ID (ej: 7KcN3lY3g8g)
-        } else {
+            when {
+                // Caso: youtube.com/watch?v=ID
+                host.contains("youtube") -> uri.getQueryParameter("v")
+                // Caso: youtu.be/ID (enlace corto)
+                host.contains("youtu.be") -> uri.lastPathSegment
+                // Caso: Enlace embed
+                url.contains("embed/") -> uri.lastPathSegment
+                else -> null
+            }
+        } catch (e: Exception) {
             null
         }
     }
