@@ -5,49 +5,63 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@android:color/white"
     tools:context=".activities.SongDetailActivity">
 
-    <androidx.appcompat.widget.Toolbar
-        android:id="@+id/detail_toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="?attr/colorPrimary"
-        app:titleTextColor="@android:color/white"
-        android:elevation="4dp"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar" />
-
-    <TextView
-        android:id="@+id/detail_liturgy_text"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/detail_toolbar"
-        android:paddingStart="20dp"
-        android:paddingEnd="20dp"
-        android:paddingTop="16dp"
-        android:paddingBottom="16dp"
-        android:background="#F0F0F0"
-        android:text="Cargando liturgia..."
-        android:textStyle="italic"
-        android:textColor="#555555"
-        android:textSize="16sp" />
-
-    <ScrollView
-        android:id="@+id/lyrics_scroll"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/detail_liturgy_text"> <TextView
-        android:id="@+id/lyrics_text"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:padding="20dp"
-        android:text="Cargando letra..."
-        android:textColor="#333333"
-        android:lineSpacingExtra="6sp"
-        android:textSize="14sp" />
+        android:orientation="vertical">
 
-    </ScrollView>
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/detail_toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorPrimary"
+            app:titleTextColor="@android:color/white"
+            android:elevation="4dp"
+            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar" />
+
+        <com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
+            android:id="@+id/youtube_player_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:autoPlay="false"
+            app:showFullScreenButton="false"
+            app:showYouTubeButton="false"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/detail_liturgy_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
+            android:background="#F0F0F0"
+            android:text="Liturgia..."
+            android:textStyle="italic"
+            android:textColor="#555555"
+            android:textSize="16sp" />
+
+        <ScrollView
+            android:id="@+id/lyrics_scroll"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <TextView
+                android:id="@+id/lyrics_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="20dp"
+                android:text="Cargando letra..."
+                android:textColor="#333333"
+                android:lineSpacingExtra="6sp"
+                android:textSize="20sp" />
+        </ScrollView>
+    </LinearLayout>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab_play"
@@ -57,6 +71,7 @@
         android:layout_alignParentBottom="true"
         android:layout_margin="16dp"
         android:src="@android:drawable/ic_media_play"
-        app:tint="@android:color/white"/>
+        app:tint="@android:color/white"
+        android:visibility="gone"/>
 
 </RelativeLayout>

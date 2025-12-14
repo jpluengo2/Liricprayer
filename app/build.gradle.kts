@@ -54,4 +54,11 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+
+    // Librería del reproductor de YouTube
+    // Core dependency for the YouTube player
+    implementation("com.pierfrancescosoffritti.androidyoutubeplayer:core:13.0.0")
+    // Optional: for the default custom UI
+    implementation("com.pierfrancescosoffritti.androidyoutubeplayer:custom-ui:13.0.0")
+
 }
